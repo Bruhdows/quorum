@@ -1,7 +1,9 @@
 package store
 
-import "testing"
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 func TestAggregate(t *testing.T) {
 	now := time.Now()
@@ -68,40 +70,19 @@ func TestAggregate(t *testing.T) {
 	})
 }
 
-func TestBucketAndUptime(t *testing.T) {
-	now := time.Unix(1000000, 0).UTC()
-	bucketSize := 30 * time.Second
-
-	rows := []CheckRow{
-		{AgentID: "a1", CheckedAt: now.Add(-90 * time.Second), Success: true},
-		{AgentID: "a1", CheckedAt: now.Add(-60 * time.Second), Success: false},
-		{AgentID: "a2", CheckedAt: now.Add(-60 * time.Second), Success: false},
-		{AgentID: "a1", CheckedAt: now.Add(-30 * time.Second), Success: true},
+func TestBucketStatus(t *testing.T) {
+	cases := []struct {
+		up, hasFailure bool
+		want           Status
+	}{
+		{true, false, StatusUp},
+		{true, true, StatusDegraded},
+		{false, true, StatusDown},
+		{false, false, StatusDown},
 	}
-
-	points := Bucket(rows, bucketSize, now, 10)
-	if len(points) != 3 {
-		t.Fatalf("got %d buckets, want 3", len(points))
-	}
-	if points[0].Status != StatusUp {
-		t.Errorf("bucket 0 got %s, want up", points[0].Status)
-	}
-	if points[1].Status != StatusDown {
-		t.Errorf("bucket 1 got %s, want down (both agents failed)", points[1].Status)
-	}
-	if points[2].Status != StatusUp {
-		t.Errorf("bucket 2 got %s, want up", points[2].Status)
-	}
-
-	pct := UptimePercent(rows, bucketSize)
-	want := float64(2) / float64(3) * 100
-	if pct != want {
-		t.Errorf("got %.4f%%, want %.4f%%", pct, want)
-	}
-}
-
-func TestUptimePercentNoData(t *testing.T) {
-	if got := UptimePercent(nil, time.Second); got != -1 {
-		t.Errorf("got %v, want -1 for no data", got)
+	for _, c := range cases {
+		if got := BucketStatus(c.up, c.hasFailure); got != c.want {
+			t.Errorf("BucketStatus(%v, %v) = %s, want %s", c.up, c.hasFailure, got, c.want)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"quorum/internal/config"
 )
@@ -73,5 +74,71 @@ func TestResultsRejectsMissingFields(t *testing.T) {
 	s.Routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("got %d, want 400 for missing ids", rec.Code)
+	}
+}
+
+func TestNormalizeResultPayload(t *testing.T) {
+	now := time.Now()
+
+	future := normalizeResultPayload(ResultPayload{
+		ServiceID: "svc", AgentID: "a",
+		CheckedAt: now.Add(time.Hour), Success: true, LatencyMS: 5,
+	}, now)
+	if !future.CheckedAt.Equal(now) {
+		t.Errorf("future timestamp should be clamped to now, got %v", future.CheckedAt)
+	}
+
+	zero := normalizeResultPayload(ResultPayload{ServiceID: "svc", AgentID: "a"}, now)
+	if !zero.CheckedAt.Equal(now) {
+		t.Errorf("zero timestamp should default to now, got %v", zero.CheckedAt)
+	}
+
+	neg := normalizeResultPayload(ResultPayload{LatencyMS: -3}, now)
+	if neg.LatencyMS != 0 {
+		t.Errorf("negative latency should be clamped to 0, got %d", neg.LatencyMS)
+	}
+
+	long := normalizeResultPayload(ResultPayload{Error: strings.Repeat("x", maxErrorLen+100)}, now)
+	if len(long.Error) != maxErrorLen {
+		t.Errorf("error should be truncated to %d chars, got %d", maxErrorLen, len(long.Error))
+	}
+}
+
+func TestSiteServesConfiguredBranding(t *testing.T) {
+	cfg := testConfig()
+	cfg.Site = config.Site{Title: "Acme Status", GitHub: "https://github.com/acme/status"}
+
+	s := New(cfg, nil, "secret", "")
+	req := httptest.NewRequest(http.MethodGet, "/api/site", nil)
+	rec := httptest.NewRecorder()
+	s.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200", rec.Code)
+	}
+	var got siteJSON
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "Acme Status" || got.GitHub != "https://github.com/acme/status" {
+		t.Errorf("got %+v, want the configured branding", got)
+	}
+}
+
+func TestSiteOmitsGithubWhenUnset(t *testing.T) {
+	cfg := testConfig()
+	cfg.Site = config.Site{Title: "Internal"}
+
+	s := New(cfg, nil, "secret", "")
+	req := httptest.NewRequest(http.MethodGet, "/api/site", nil)
+	rec := httptest.NewRecorder()
+	s.Routes().ServeHTTP(rec, req)
+
+	var got siteJSON
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.GitHub != "" {
+		t.Errorf("got github %q, want empty so the frontend hides the icon", got.GitHub)
 	}
 }

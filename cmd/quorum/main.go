@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"quorum/internal/agent"
+	"quorum/internal/alerts"
 	"quorum/internal/config"
 	"quorum/internal/server"
 	"quorum/internal/store"
@@ -62,11 +63,21 @@ func runServe(args []string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	go prune(ctx, st)
+	retention := time.Duration(cfg.RetentionDays) * 24 * time.Hour
+	go prune(ctx, st, retention)
+
+	srv := server.New(cfg, st, token, *staticDir)
+	if disp := alerts.FromConfig(cfg, os.Getenv("DISCORD_WEBHOOK_URL")); disp != nil {
+		log.Printf("alerting to Discord enabled (checks every %ds, %dm cooldown)",
+			cfg.Alerts.CheckIntervalSecs, cfg.Alerts.CooldownMinutes)
+		go srv.WatchStatuses(ctx, alerts.Interval(cfg), disp.Handle)
+	} else {
+		log.Print("alerting disabled (set alerts.discord_webhook_url or DISCORD_WEBHOOK_URL to enable)")
+	}
 
 	httpServer := &http.Server{
 		Addr:              *addr,
-		Handler:           server.New(cfg, st, token, *staticDir).Routes(),
+		Handler:           srv.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -88,7 +99,10 @@ func runServe(args []string) {
 	}
 }
 
-func prune(ctx context.Context, st *store.Store) {
+func prune(ctx context.Context, st *store.Store, retention time.Duration) {
+	// Prune once at startup too. Otherwise a restart leaves rows older
+	// than the window lying around for up to another full day.
+	pruneOnce(ctx, st, retention)
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 	for {
@@ -96,11 +110,17 @@ func prune(ctx context.Context, st *store.Store) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			cutoff := time.Now().Add(-90 * 24 * time.Hour)
-			if err := st.PruneOlderThan(ctx, cutoff); err != nil {
-				log.Printf("prune: %v", err)
-			}
+			pruneOnce(ctx, st, retention)
 		}
+	}
+}
+
+func pruneOnce(ctx context.Context, st *store.Store, retention time.Duration) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	cutoff := time.Now().Add(-retention)
+	if err := st.PruneOlderThan(ctx, cutoff); err != nil {
+		log.Printf("prune: %v", err)
 	}
 }
 

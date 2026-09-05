@@ -1,10 +1,11 @@
-// Package checker runs a single health check (http, tcp, or ping) and
-// reports whether it succeeded and how long it took.
+// Package checker runs a single health check (http, tcp, ping, or
+// minecraft) and reports whether it succeeded and how long it took.
 package checker
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os/exec"
@@ -29,6 +30,8 @@ func Check(ctx context.Context, s config.Service) Result {
 		return checkTCP(ctx, s.Target)
 	case config.CheckPing:
 		return checkPing(ctx, s.Target)
+	case config.CheckMinecraft:
+		return checkMinecraft(ctx, s.Target)
 	default:
 		return Result{Success: false, Error: fmt.Sprintf("unknown check type %q", s.Type)}
 	}
@@ -45,7 +48,10 @@ func checkHTTP(ctx context.Context, target string) Result {
 	if err != nil {
 		return Result{Success: false, LatencyMS: int(latency.Milliseconds()), Error: err.Error()}
 	}
-	defer resp.Body.Close()
+	// Drain a few KB so the connection gets reused. The body itself says
+	// nothing about up or down.
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
+	resp.Body.Close()
 	success := resp.StatusCode >= 200 && resp.StatusCode < 400
 	res := Result{Success: success, LatencyMS: int(latency.Milliseconds())}
 	if !success {
