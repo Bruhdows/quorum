@@ -7,8 +7,11 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"html"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,6 +56,10 @@ type Server struct {
 	statusCache *responseCache
 	uptimeCache *responseCache
 	detailCache *responseCache
+	// indexHTML is web/dist/index.html with the head tags swapped for the
+	// configured branding. Nil when static serving is off or the file
+	// couldn't be read, in which case the raw files go out untouched.
+	indexHTML []byte
 }
 
 func New(cfg *config.Config, st *store.Store, agentToken, staticDir string) *Server {
@@ -60,7 +67,7 @@ func New(cfg *config.Config, st *store.Store, agentToken, staticDir string) *Ser
 	// get the same defaults as loaded ones, without mutating the caller's.
 	c := *cfg
 	c.WithDefaults()
-	return &Server{
+	s := &Server{
 		cfg:         &c,
 		st:          st,
 		agentToken:  agentToken,
@@ -69,6 +76,8 @@ func New(cfg *config.Config, st *store.Store, agentToken, staticDir string) *Ser
 		uptimeCache: newResponseCache(uptimeTTL),
 		detailCache: newResponseCache(detailTTL),
 	}
+	s.indexHTML = loadPatchedIndex(staticDir, c.Site.Title, siteDescription(&c))
+	return s
 }
 
 // retention returns the trailing window the history strip, uptime %, and
@@ -92,18 +101,61 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/site", s.handleSite)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	if s.staticDir != "" {
-		mux.Handle("/", staticHandler(s.staticDir))
+		mux.Handle("/", s.serveStatic())
 	}
 	return mux
 }
 
-// staticHandler serves the built frontend. The build hashes every asset
-// name, so those cache forever. The HTML pointing at them must not, or a
-// visitor keeps loading the old page after a deploy and asks for files
-// that no longer exist.
-func staticHandler(dir string) http.Handler {
-	fs := http.FileServer(http.Dir(dir))
+// Default head tags baked into web/dist/index.html at build time (see
+// web/src/pages/index.astro). The hub swaps them for the configured site
+// branding so tabs and link unfurls show this instance. Crawlers don't run
+// JS, so patching the served HTML is the only way without rebuilding the
+// frontend per instance. Whole tags get replaced, never bare words:
+// "quorum" also appears in body copy that must stay untouched.
+const defaultTitleTag = "<title>quorum</title>"
+
+func siteDescription(c *config.Config) string {
+	if c.Site.Description != "" {
+		return c.Site.Description
+	}
+	return config.DefaultSiteDescription
+}
+
+// loadPatchedIndex reads the built index.html once and swaps its head tags.
+// It returns nil when there is nothing to serve or the file can't be read;
+// callers then fall back to the raw file server.
+func loadPatchedIndex(dir, title, description string) []byte {
+	if dir == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "index.html"))
+	if err != nil {
+		return nil
+	}
+	return patchIndexHead(raw, title, description)
+}
+
+func patchIndexHead(page []byte, title, description string) []byte {
+	s := string(page)
+	s = strings.ReplaceAll(s, defaultTitleTag, "<title>"+html.EscapeString(title)+"</title>")
+	s = strings.ReplaceAll(s, `content="quorum"`, `content="`+html.EscapeString(title)+`"`)
+	s = strings.ReplaceAll(s, config.DefaultSiteDescription, html.EscapeString(description))
+	return []byte(s)
+}
+
+// serveStatic serves the built frontend. The build hashes every asset name,
+// so those cache forever. The HTML pointing at them must not, or a visitor
+// keeps loading the old page after a deploy and asks for files that no
+// longer exist. The index page goes out with patched head tags.
+func (s *Server) serveStatic() http.Handler {
+	fs := http.FileServer(http.Dir(s.staticDir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.indexHTML != nil && (r.URL.Path == "/" || r.URL.Path == "/index.html") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Write(s.indexHTML)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/_astro/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {

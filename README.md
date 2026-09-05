@@ -200,6 +200,10 @@ Top-level keys in `services.yaml` (restart the hub to apply):
 | `retention_days`   | 90      | History kept; the strip, uptime %, and pruning all use it |
 | `stale_multiplier` | 3       | A check counts as recent for Nx its own interval          |
 
+`site.title` and `site.description` brand the page header, browser tab,
+and link previews. The hub patches the built page at serve time, so
+changing them needs a hub restart but no frontend rebuild.
+
 ## Development
 
 ```sh

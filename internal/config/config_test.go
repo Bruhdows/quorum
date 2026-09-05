@@ -38,14 +38,17 @@ func TestSiteDefaultsToQuorum(t *testing.T) {
 	if cfg.Site.GitHub != "" {
 		t.Errorf("got github %q, want empty by default", cfg.Site.GitHub)
 	}
+	if cfg.Site.Description != DefaultSiteDescription {
+		t.Errorf("got description %q, want the default", cfg.Site.Description)
+	}
 }
 
 func TestSiteIsConfigurable(t *testing.T) {
-	cfg, err := Load(write(t, "site:\n  title: Acme\n  github: https://example.com/repo\n"+oneService))
+	cfg, err := Load(write(t, "site:\n  title: Acme\n  github: https://example.com/repo\n  description: Acme services, live\n"+oneService))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Site.Title != "Acme" || cfg.Site.GitHub != "https://example.com/repo" {
+	if cfg.Site.Title != "Acme" || cfg.Site.GitHub != "https://example.com/repo" || cfg.Site.Description != "Acme services, live" {
 		t.Errorf("got %+v, want the configured values", cfg.Site)
 	}
 }

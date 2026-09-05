@@ -7,10 +7,13 @@
 # List Ping handshake, 1.7+. It proves a real game server answers, not just
 # an open port). Minecraft targets are `host:port`.
 
-# Branding for the page header. Leave `github` empty to hide the icon.
+# Branding for the page header, browser tab, and link previews. The hub
+# patches the built page with these at serve time, no rebuild needed.
+# Leave `github` empty to hide the icon.
 site:
   title: quorum
   github: https://github.com/Bruhdows/quorum
+  # description: Live status of my services.
 
 # Tuning. Everything below is optional, the shown defaults apply when a key
 # is absent. Restart the hub to apply changes.

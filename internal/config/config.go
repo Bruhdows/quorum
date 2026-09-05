@@ -31,11 +31,13 @@ type Group struct {
 	Services []Service `yaml:"services"`
 }
 
-// Site is the branding shown in the page header. An empty GitHub URL hides
-// the link entirely, for an instance that isn't published anywhere.
+// Site is the branding shown in the page header, the browser tab, and link
+// previews. An empty GitHub URL hides the link entirely, for an instance
+// that isn't published anywhere.
 type Site struct {
-	Title  string `yaml:"title"`
-	GitHub string `yaml:"github"`
+	Title       string `yaml:"title"`
+	GitHub      string `yaml:"github"`
+	Description string `yaml:"description"`
 }
 
 type Config struct {
@@ -79,6 +81,11 @@ const (
 	minAlertCheckSecs      = 5
 )
 
+// DefaultSiteDescription is the link-preview text when services.yaml sets
+// no site description. It doubles as the meta tag default baked into the
+// frontend build, which the hub swaps out for configured instances.
+const DefaultSiteDescription = "Live health of every monitored endpoint, checked by quorum from several machines."
+
 var serviceIDPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 func Load(path string) (*Config, error) {
@@ -92,6 +99,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Site.Title == "" {
 		cfg.Site.Title = "quorum"
+	}
+	if cfg.Site.Description == "" {
+		cfg.Site.Description = DefaultSiteDescription
 	}
 	cfg.WithDefaults()
 	if err := cfg.Validate(); err != nil {

@@ -1,14 +1,26 @@
 ---
 import App from '../components/App.jsx';
 import '../styles/global.css';
+
+// Defaults for the tab and link previews. The hub swaps these for the
+// configured site branding when it serves the page (see patchIndexHead in
+// internal/server), so keep the literals in sync with the Go side.
+const defaultTitle = 'quorum';
+const defaultDescription = 'Live health of every monitored endpoint, checked by quorum from several machines.';
 ---
 <!doctype html>
 <html lang="en" class="dark">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<meta name="description" content="Live health of every monitored endpoint, checked by quorum from several machines." />
-	<title>quorum status</title>
+	<meta name="description" content={defaultDescription} />
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content={defaultTitle} />
+	<meta property="og:description" content={defaultDescription} />
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content={defaultTitle} />
+	<meta name="twitter:description" content={defaultDescription} />
+	<title>{defaultTitle}</title>
 	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%2310b981'/%3E%3C/svg%3E" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -140,5 +142,43 @@ func TestSiteOmitsGithubWhenUnset(t *testing.T) {
 	}
 	if got.GitHub != "" {
 		t.Errorf("got github %q, want empty so the frontend hides the icon", got.GitHub)
+	}
+}
+
+func TestIndexServesConfiguredBranding(t *testing.T) {
+	dir := t.TempDir()
+	raw := `<html><head><title>quorum</title>` +
+		`<meta name="description" content="` + config.DefaultSiteDescription + `" />` +
+		`<meta property="og:title" content="quorum" />` +
+		`<meta property="og:description" content="` + config.DefaultSiteDescription + `" />` +
+		`</head><body></body></html>`
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := testConfig()
+	cfg.Site = config.Site{Title: "Fish & Chips", Description: "Hot status, served fresh"}
+	s := New(cfg, nil, "secret", dir)
+
+	for _, path := range []string{"/", "/index.html"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		s.Routes().ServeHTTP(rec, req)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s: got %d, want 200", path, rec.Code)
+		}
+		for _, want := range []string{
+			"<title>Fish &amp; Chips</title>",
+			`content="Fish &amp; Chips"`,
+			"Hot status, served fresh",
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("GET %s: missing %q in %q", path, want, body)
+			}
+		}
+		if strings.Contains(body, "Fish & Chips") {
+			t.Errorf("GET %s: unescaped title in %q", path, body)
+		}
 	}
 }
