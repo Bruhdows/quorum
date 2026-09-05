@@ -1,6 +1,11 @@
 import { defineConfig } from 'astro/config';
+import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite';
 
-// Static build. The Go hub serves the output directly, no SSR needed.
 export default defineConfig({
   output: 'static',
+  integrations: [react()],
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });

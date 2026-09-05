@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* Light is the default; `.dark` on <html> flips the same token names, so
+   components never spell out a per-theme colour. */
+:root {
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e4e4e7;
+  --subtle: #e4e4e7;
+  --fg: #18181b;
+  --fg-muted: #71717a;
+  --fg-faint: #a1a1aa;
+  --accent: #f4f4f5;
+  --success: #059669;
+  --danger: #dc2626;
+  --warning: #d97706;
+  /* Darker than --subtle. A large fill can afford to be faint; an 8px dot
+     next to a solid green and red one cannot. */
+  --unknown: #a1a1aa;
+  /* Latency is a measurement, not a state, so it gets its own hue and leaves
+     the status colours reserved for status. */
+  --chart: #4f46e5;
+  --shadow-color: rgb(24 24 27 / 0.2);
+  --shadow: 0 8px 24px -12px var(--shadow-color);
+}
+
+.dark {
+  --bg: #09090b;
+  --card: #121215;
+  --border: #27272a;
+  --subtle: #27272a;
+  --fg: #fafafa;
+  --fg-muted: #a1a1aa;
+  --fg-faint: #71717a;
+  --accent: #1c1c20;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --unknown: #8b8b95;
+  --chart: #818cf8;
+  --shadow-color: rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-background: var(--bg);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-subtle: var(--subtle);
+  --color-foreground: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-faint: var(--fg-faint);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-unknown: var(--unknown);
+  --color-chart: var(--chart);
+
+  --shadow-popover: var(--shadow);
+}
+
+/* `color-scheme` cannot be interpolated: it flips on the first frame and
+   takes the scrollbar and native form chrome with it, which reads as a flash
+   against a page that is still mid-fade. So it hangs off its own attribute,
+   which the toggle sets once the colours have arrived. */
+html {
+  color-scheme: light;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+html[data-scheme="dark"] {
+  color-scheme: dark;
+}
+
+/* Chromium and Safari ignore scrollbar-color, so they get their own rules. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-faint);
+}
+
+/* Animate the tokens, not the elements.
+   A `* { transition: color, background-color }` rule makes the browser track
+   an animation for every node on the page, which stutters and lets text and
+   its background cross-fade at different apparent rates, reading as a flash.
+   Registering the tokens as real colours means one interpolation on :root
+   drives every colour that derives from them, in one step. */
+@property --bg { syntax: "<color>"; inherits: true; initial-value: #fafafa; }
+@property --card { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+@property --border { syntax: "<color>"; inherits: true; initial-value: #e4e4e7; }
+@property --subtle { syntax: "<color>"; inherits: true; initial-value: #e4e4e7; }
+@property --fg { syntax: "<color>"; inherits: true; initial-value: #18181b; }
+@property --fg-muted { syntax: "<color>"; inherits: true; initial-value: #71717a; }
+@property --fg-faint { syntax: "<color>"; inherits: true; initial-value: #a1a1aa; }
+@property --accent { syntax: "<color>"; inherits: true; initial-value: #f4f4f5; }
+@property --success { syntax: "<color>"; inherits: true; initial-value: #059669; }
+@property --danger { syntax: "<color>"; inherits: true; initial-value: #dc2626; }
+@property --warning { syntax: "<color>"; inherits: true; initial-value: #d97706; }
+@property --unknown { syntax: "<color>"; inherits: true; initial-value: #a1a1aa; }
+@property --chart { syntax: "<color>"; inherits: true; initial-value: #4f46e5; }
+@property --shadow-color { syntax: "<color>"; inherits: true; initial-value: rgb(24 24 27 / 0.2); }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition: --bg 260ms ease, --card 260ms ease, --border 260ms ease,
+      --subtle 260ms ease, --fg 260ms ease, --fg-muted 260ms ease,
+      --fg-faint 260ms ease, --accent 260ms ease, --success 260ms ease,
+      --danger 260ms ease, --warning 260ms ease, --unknown 260ms ease,
+      --chart 260ms ease, --shadow-color 260ms ease;
+  }
+}
+
+/* An element with its own `transition-colors` interpolates toward whatever
+   the token currently is. While the token is itself animating, that element
+   chases a moving target and lands its own duration late, so buttons and
+   some text visibly trail the rest of the page. During the swap the tokens
+   do all the work; hover animations resume as soon as it ends. */
+html.theme-switching *:not(html) {
+  transition-property: opacity, transform !important;
+}
+
+::selection {
+  background: var(--success);
+  color: var(--bg);
+}
