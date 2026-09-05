@@ -1,0 +1,24 @@
+# Services to monitor. Edit this file and restart the hub to apply changes.
+# Agents re-fetch the list every 5 minutes on their own, so they don't need
+# to be restarted.
+groups:
+  - name: game-servers
+    services:
+      - id: boxhunt
+        name: Boxhunt
+        type: http
+        target: https://proxy.boxhunt.pl
+        interval_seconds: 30
+
+  - name: local-dedi
+    services:
+      - id: ping-local
+        name: Ping
+        type: ping
+        target: 10.10.0.2
+        interval_seconds: 30
+      - id: ssh-local
+        name: SSH
+        type: tcp
+        target: 10.10.0.2:22
+        interval_seconds: 30

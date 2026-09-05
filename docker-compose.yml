@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uptime
+      POSTGRES_PASSWORD: uptime
+      POSTGRES_DB: uptime
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uptime"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hub:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AGENT_TOKEN: ${AGENT_TOKEN:?set AGENT_TOKEN in .env, see .env.example}
+      DATABASE_URL: postgres://uptime:uptime@postgres:5432/uptime?sslmode=disable
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./services.yaml:/app/services.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
