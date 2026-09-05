@@ -1,0 +1,7 @@
+.git
+web/node_modules
+web/dist
+web/.astro
+.env
+# Dumps would only bloat the build context. The image never needs them.
+backups/

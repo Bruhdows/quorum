@@ -2,12 +2,22 @@ services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    # Docker's default json-file logs are unbounded; cap them so a chatty
+    # container can't slowly fill the host disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: uptime
-      POSTGRES_PASSWORD: uptime
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env, see .env.example}
       POSTGRES_DB: uptime
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
+      # Mounted so a dump from the backup service can be restored with one
+      # exec, without copying files into the container by hand.
+      - ./backups:/backups:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U uptime"]
       interval: 5s
@@ -16,15 +26,26 @@ services:
 
   hub:
     build: .
+    image: ghcr.io/bruhdows/quorum:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       AGENT_TOKEN: ${AGENT_TOKEN:?set AGENT_TOKEN in .env, see .env.example}
-      DATABASE_URL: postgres://uptime:uptime@postgres:5432/uptime?sslmode=disable
+      DATABASE_URL: postgres://uptime:${POSTGRES_PASSWORD}@postgres:5432/uptime?sslmode=disable
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    # Bound to localhost. The hub sits behind a tunnel or proxy on this
+    # machine (cloudflared ingress -> http://localhost:8080), it never
+    # faces the internet itself. Drop the 127.0.0.1: prefix to expose :8080
+    # to the LAN.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./services.yaml:/app/services.yaml:ro
     healthcheck:
@@ -32,6 +53,60 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Without at least one agent nothing ever writes check results and every
+  # service reads as "unknown". The README allows the hub to double as a
+  # checker, so compose ships one: it polls the hub over the internal
+  # network and runs the same checks a standalone agent would.
+  agent:
+    build: .
+    image: ghcr.io/bruhdows/quorum:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # ping needs CAP_NET_RAW. The image bakes the capability into the ping
+    # binary with setcap, and this puts it in the container's bounding set.
+    # Without both, every ping check fails and those services read as down.
+    cap_add:
+      - NET_RAW
+    depends_on:
+      hub:
+        condition: service_healthy
+    environment:
+      AGENT_TOKEN: ${AGENT_TOKEN:?set AGENT_TOKEN in .env, see .env.example}
+    command: ["agent", "-hub", "http://hub:8080", "-agent-id", "compose"]
+
+  # Nightly Postgres dumps. It sits behind the backup profile, so a plain
+  # `docker compose up` never starts it. Run it by hand or from cron:
+  #   docker compose --profile backup up backup
+  #   0 3 * * * cd /opt/quorum && docker compose --profile backup up backup
+  backup:
+    image: postgres:18-alpine
+    profiles: [backup]
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: uptime
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env, see .env.example}
+      PGDATABASE: uptime
+    volumes:
+      - ./backups:/backups
+    # One custom-format dump per day, stamped by date. find deletes anything
+    # older than 14 days, so the folder stops growing on its own.
+    command: >
+      sh -c 'pg_dump -Fc -f /backups/uptime-$$(date +%F).dump
+      && find /backups -name "uptime-*.dump" -mtime +14 -delete'
 
 volumes:
   pgdata:

@@ -3,3 +3,4 @@
 /web/.astro/
 *.log
 .env
+/backups/
