@@ -1,6 +1,29 @@
 # Services to monitor. Edit this file and restart the hub to apply changes.
 # Agents re-fetch the list every 5 minutes on their own, so they don't need
 # to be restarted.
+#
+# Check types: `http` (GET, 2xx/3xx is up), `tcp` (port accepts connections),
+# `ping` (one ICMP echo via the system ping binary), `minecraft` (Server
+# List Ping handshake, 1.7+. It proves a real game server answers, not just
+# an open port). Minecraft targets are `host:port`.
+
+# Branding for the page header. Leave `github` empty to hide the icon.
+site:
+  title: quorum
+  github: https://github.com/Bruhdows/quorum
+
+# Tuning. Everything below is optional, the shown defaults apply when a key
+# is absent. Restart the hub to apply changes.
+# retention_days: 90      # history kept, and the window the strip, uptime %,
+#                         # and pruning all agree on (7..365)
+# stale_multiplier: 3     # a check counts as recent for Nx its interval (1..10)
+# alerts:
+#   discord_webhook_url: "" # or DISCORD_WEBHOOK_URL env (env wins)
+#   cooldown_minutes: 30    # per-service quiet period after an alert;
+#                           # recoveries always go out immediately
+#   check_interval_seconds: 30
+#   notify_unknown: false   # also alert when agents stop reporting
+
 groups:
   - name: game-servers
     services:
@@ -8,6 +31,11 @@ groups:
         name: Boxhunt
         type: http
         target: https://proxy.boxhunt.pl
+        interval_seconds: 30
+      - id: boxhunt-mc
+        name: Boxhunt Minecraft
+        type: minecraft
+        target: proxy.boxhunt.pl:30000
         interval_seconds: 30
 
   - name: local-dedi
