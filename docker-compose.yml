@@ -27,12 +27,18 @@ services:
   hub:
     build: .
     image: ghcr.io/bruhdows/quorum:latest
+    # Always pull on up. With build: present a plain up would otherwise
+    # rebuild from whatever source happens to be lying around.
+    pull_policy: always
     restart: unless-stopped
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    # The box-wide watchtower only touches labeled containers.
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,11 +47,12 @@ services:
       DATABASE_URL: postgres://uptime:${POSTGRES_PASSWORD}@postgres:5432/uptime?sslmode=disable
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
     # Bound to localhost. The hub sits behind a tunnel or proxy on this
-    # machine (cloudflared ingress -> http://localhost:8080), it never
-    # faces the internet itself. Drop the 127.0.0.1: prefix to expose :8080
-    # to the LAN.
+    # machine (cloudflared ingress -> http://localhost:$HUB_PORT), it never
+    # faces the internet itself. Set HUB_PORT in .env when the default
+    # clashes; the tunnel ingress has to match. Drop the 127.0.0.1: prefix
+    # to expose the port to the LAN.
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${HUB_PORT:-8080}:8080"
     volumes:
       - ./services.yaml:/app/services.yaml:ro
     healthcheck:
@@ -61,12 +68,15 @@ services:
   agent:
     build: .
     image: ghcr.io/bruhdows/quorum:latest
+    pull_policy: always
     restart: unless-stopped
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     # ping needs CAP_NET_RAW. The image bakes the capability into the ping
     # binary with setcap, and this puts it in the container's bounding set.
     # Without both, every ping check fails and those services read as down.
@@ -78,6 +88,26 @@ services:
     environment:
       AGENT_TOKEN: ${AGENT_TOKEN:?set AGENT_TOKEN in .env, see .env.example}
     command: ["agent", "-hub", "http://hub:8080", "-agent-id", "compose"]
+
+  # The Cloudflare tunnel in front of the hub, so the status page keeps
+  # working with no dashboard changes. Behind the tunnel profile so a
+  # plain `docker compose up` never starts it: needs TUNNEL_TOKEN in .env
+  # and an ingress rule pointing at http://localhost:$HUB_PORT.
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    container_name: quorum-cloudflared
+    network_mode: host
+    environment:
+      # Empty unless the tunnel profile runs; cloudflared refuses to start
+      # without it, which is the point.
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    command: tunnel --no-autoupdate run
+    depends_on:
+      hub:
+        condition: service_healthy
 
   # Nightly Postgres dumps. It sits behind the backup profile, so a plain
   # `docker compose up` never starts it. Run it by hand or from cron:

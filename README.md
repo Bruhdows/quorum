@@ -48,9 +48,12 @@ docker compose up -d --build
 ```
 
 Compose pins `image: ghcr.io/bruhdows/quorum:latest` next to `build: .`,
-so later upgrades are just `docker compose pull && docker compose up -d`.
-While the repo is private, pulling needs `docker login ghcr.io` with a
-token that has `read:packages`.
+with `pull_policy: always`, so later upgrades are just
+`docker compose pull && docker compose up -d`. While the repo is private,
+pulling needs `docker login ghcr.io` with a token that has
+`read:packages`. Hub and agent carry the watchtower opt-in label, so a
+box running watchtower with `--label-enable` picks up new images on its
+own.
 
 `POSTGRES_PASSWORD` gets interpolated into `DATABASE_URL`, so keep it to
 `openssl rand -hex` output. Anything with `@ / : ? # &` in it breaks the
@@ -62,12 +65,18 @@ WAF live there too, the hub does none of that itself.
 
 ### Cloudflare tunnel
 
-Point an ingress rule at the hub and leave everything else alone:
+The compose file ships the tunnel too, behind the `tunnel` profile. Set
+`TUNNEL_TOKEN` and `HUB_PORT` in `.env`, point an ingress rule at the hub,
+and leave everything else alone:
+
+```sh
+docker compose --profile tunnel up -d
+```
 
 ```yaml
 ingress:
   - hostname: status.example.com
-    service: http://localhost:8080
+    service: http://localhost:8080   # must match HUB_PORT
   - service: http_status:404
 ```
 
