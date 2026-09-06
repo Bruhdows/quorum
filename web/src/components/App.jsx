@@ -7,6 +7,7 @@ import { fetchJSON } from '../lib/api.js';
 import { iconButtonClass } from './ui/button.jsx';
 import Tooltip from './Tooltip.jsx';
 import { Toaster } from 'sonner';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
 const REFRESH_OPTIONS = [
   { value: 10000, label: '10s' },
@@ -83,6 +84,8 @@ export default function App() {
   const [serviceId, setServiceId] = useState(null);
   const [dark, setDark] = useState(true);
   const [site, setSite] = useState({ title: 'quorum', github: '' });
+  // Bottom-right toasts cover content on a phone; centered ones don't.
+  const toastPosition = useMediaQuery('(min-width: 640px)') ? 'bottom-right' : 'bottom-center';
 
   // Branding lives in services.yaml, so it can change without a rebuild.
   useEffect(() => {
@@ -142,7 +145,7 @@ export default function App() {
     <>
       <Toaster
         theme={dark ? 'dark' : 'light'}
-        position="bottom-right"
+        position={toastPosition}
         offset={24}
         richColors
         closeButton
@@ -155,7 +158,7 @@ export default function App() {
       />
 
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center gap-2 px-6 py-3">
+        <div className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-3 sm:px-6">
           <a href="/" className="font-semibold tracking-tight transition-opacity hover:opacity-80">{site.title}</a>
 
           <div className="ml-auto flex items-center gap-2">
@@ -187,7 +190,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
         {serviceId ? (
           <ServiceDetail serviceId={serviceId} refreshMs={refreshMs} onBack={back} />
         ) : (

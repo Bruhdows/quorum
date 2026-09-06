@@ -93,8 +93,11 @@ export default function LatencyChart({ points, rangeKey }) {
         ref={svg}
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="block h-[240px] w-full touch-none"
+        // pan-y, not none: vertical drags still scroll the page. Taps set
+        // the crosshair for touch users, who have no hover.
+        className="block h-[240px] w-full touch-pan-y"
         onPointerMove={onMove}
+        onPointerDown={onMove}
         onPointerLeave={() => setHover(null)}
         role="img"
         aria-label={`Average response time, ${rangeKey}`}
@@ -147,10 +150,10 @@ export default function LatencyChart({ points, rangeKey }) {
 
       {hover && plotted.length > 0 && (
         <div
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-popover"
-          // Keep the bubble on the chart near the edges instead of letting
-          // it hang off the side.
-          style={{ left: `${Math.min(Math.max(hover.x, 72), W - 72)}px`, top: `${hover.y - 8}px` }}
+          className="pointer-events-none absolute max-w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-popover"
+          // Keep the bubble on the chart near the edges. The clamp shrinks
+          // with the chart so it still fits on a phone.
+          style={{ left: `${Math.min(Math.max(hover.x, Math.min(72, W / 4)), W - Math.min(72, W / 4))}px`, top: `${hover.y - 8}px` }}
         >
           <div className="font-medium">{hover.point.avg_ms} ms</div>
           <div className="text-muted">

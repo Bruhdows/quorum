@@ -54,7 +54,7 @@ export function Modal({ open, onClose, title, children }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:pb-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) closeRef.current(); }}
     >
       <div
@@ -63,7 +63,8 @@ export function Modal({ open, onClose, title, children }) {
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : 'Details'}
         tabIndex={-1}
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card shadow-popover focus:outline-none"
+        // dvh where supported: vh counts the collapsible browser chrome.
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card shadow-popover focus:outline-none supports-[height:100dvh]:max-h-[85dvh]"
       >
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5">
           <h2 className="min-w-0 truncate text-sm font-semibold">{title}</h2>

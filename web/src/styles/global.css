@@ -70,6 +70,14 @@ html {
   color-scheme: light;
   scrollbar-color: var(--border) transparent;
   scrollbar-width: thin;
+  /* Tapping a button should show its own hover/active state, not the
+     grey platform flash on top of it. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  /* One missed bubble edge should never give the page a sideways scroll. */
+  overflow-x: clip;
 }
 
 html[data-scheme="dark"] {

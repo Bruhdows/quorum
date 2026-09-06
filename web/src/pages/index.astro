@@ -12,7 +12,9 @@ const defaultDescription = 'Live health of every monitored endpoint, checked by 
 <html lang="en" class="dark">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+	<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
 	<meta name="description" content={defaultDescription} />
 	<meta property="og:type" content="website" />
 	<meta property="og:title" content={defaultTitle} />
@@ -43,7 +45,7 @@ const defaultDescription = 'Live health of every monitored endpoint, checked by 
 
 	<!-- Pushed to the bottom by `flex-1` on <main>, so a short page still fills
 	     the viewport. It scrolls with the content rather than floating over it. -->
-	<footer class="mt-auto border-t border-border px-6 py-4 text-center text-sm text-muted">
+	<footer class="mt-auto border-t border-border px-4 py-4 text-center text-sm text-muted sm:px-6">
 		Powered by <a class="text-success transition-opacity hover:opacity-80" href="https://github.com/Bruhdows/quorum" target="_blank" rel="noopener">quorum</a>
 	</footer>
 </body>

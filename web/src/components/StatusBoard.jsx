@@ -17,6 +17,7 @@ import { SEVERITY, STATUS_LABEL, StatusPill } from './status.jsx';
 import { dayDate, dayDateShort, formatLatency, formatUptime, groupLabel, timeAgo } from '../lib/format.js';
 import { useNow } from '../hooks/useNow.js';
 import { usePoll } from '../hooks/usePoll.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { GhostButton } from './ui/button.jsx';
 import { ErrorBanner, PageSkeleton } from './ui/feedback.jsx';
 
@@ -32,6 +33,7 @@ const BAR_BG = {
 // the confirmation, and only a genuinely slow one spins.
 const SPINNER_DELAY_MS = 180;
 const CONFIRM_MS = 900;
+const MOBILE_DAYS = 30;
 
 const CHANGE_TOAST = {
   down: { notify: toast.error, verb: 'went down', detail: 'Every checker that reported failed to reach it.' },
@@ -82,11 +84,15 @@ function Rule() {
   return <span className="h-px flex-1 bg-border" />;
 }
 
-function ServiceRow({ service, days, onOpen, first, last }) {
+function ServiceRow({ service, days, fullDays, onOpen, first, last }) {
   const status = service.status || 'unknown';
   const latency = formatLatency(service.latency_ms);
   const uptime = formatUptime(service.uptime_pct);
-  const oldest = service.history?.length ? service.history[0].t : null;
+  // `days` is the visible window (narrowed on phones), so the caption
+  // tracks what the strip shows. The uptime value still covers the full
+  // window, hence the separate fullDays.
+  const visible = (service.history || []).slice(-days);
+  const oldest = visible.length ? visible[0].t : null;
 
   return (
     <a
@@ -97,7 +103,7 @@ function ServiceRow({ service, days, onOpen, first, last }) {
         e.preventDefault();
         onOpen(service.id);
       }}
-      className={`group/row block px-5 py-5 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success/40 ${first ? 'rounded-t-xl' : ''} ${last ? 'rounded-b-xl' : ''}`}
+      className={`group/row block px-4 py-4 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success/40 sm:px-5 sm:py-5 ${first ? 'rounded-t-xl' : ''} ${last ? 'rounded-b-xl' : ''}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -127,7 +133,7 @@ function ServiceRow({ service, days, onOpen, first, last }) {
       <div className="mt-2 flex items-center gap-3 text-[11px] text-faint">
         <span className="whitespace-nowrap">{oldest ? dayDateShort(oldest) : 'no history'}</span>
         <Rule />
-        <Tooltip label={`Share of checks that succeeded, last ${days} days`}>
+        <Tooltip label={`Share of checks that succeeded, last ${fullDays ?? days} days`}>
           <span className="whitespace-nowrap tabular-nums text-muted">{uptime}</span>
         </Tooltip>
         <Rule />
@@ -167,7 +173,7 @@ function OverallBanner({ services }) {
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-5 py-4 ${tone}`}>
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-4 sm:px-5 ${tone}`}>
       <BannerIcon className="h-5 w-5 shrink-0" />
       <div className="min-w-0">
         <p className="text-sm font-semibold">{title}</p>
@@ -295,8 +301,11 @@ export default function StatusBoard({ refreshMs, onOpen }) {
   }, [data, search, sortBy]);
 
   // The API reports how many days the strip covers, since it follows
-  // retention_days. Until the first poll lands, assume 90.
+  // retention_days. Until the first poll lands, assume 90. Phones show
+  // the trailing 30 instead; 90 bars won't fit in 300px.
   const days = data?.uptime_days || 90;
+  const isDesktop = useMediaQuery('(min-width: 640px)');
+  const visibleDays = isDesktop ? days : Math.min(days, MOBILE_DAYS);
 
   return (
     <div className="space-y-6">
@@ -316,7 +325,8 @@ export default function StatusBoard({ refreshMs, onOpen }) {
             placeholder="Search services"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-card pl-10 pr-3.5 text-sm text-foreground placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-success/40"
+            // 16px on phones: iOS Safari zooms into anything smaller.
+            className="h-10 w-full rounded-lg border border-border bg-card pl-10 pr-3.5 text-base text-foreground placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-success/40 sm:h-9 sm:text-sm"
           />
         </div>
         <Dropdown
@@ -325,6 +335,8 @@ export default function StatusBoard({ refreshMs, onOpen }) {
           onChange={setSortBy}
           icon={ArrowDownWideNarrow}
           label="Sort services"
+          className="w-full sm:w-auto"
+          triggerClassName="w-full justify-between sm:w-auto sm:justify-start"
         />
       </div>
 
@@ -342,7 +354,8 @@ export default function StatusBoard({ refreshMs, onOpen }) {
             {g.services.map((s, i) => (
               <ServiceRow
                 service={s}
-                days={days}
+                days={visibleDays}
+                fullDays={days}
                 key={s.id}
                 onOpen={onOpen}
                 first={i === 0}

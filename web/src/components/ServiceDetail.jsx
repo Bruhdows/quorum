@@ -162,7 +162,8 @@ export default function ServiceDetail({ serviceId, refreshMs, onBack }) {
     <button
       type="button"
       onClick={onBack}
-      className="mb-6 flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
+      // Bigger hit area, same alignment thanks to the negative margin.
+      className="-ml-2 mb-4 flex items-center gap-1.5 px-2 py-2 text-sm text-muted transition-colors hover:text-foreground sm:mb-6 sm:py-1"
     >
       <ArrowLeft className="h-4 w-4" /> Back to dashboard
     </button>
@@ -195,12 +196,12 @@ export default function ServiceDetail({ serviceId, refreshMs, onBack }) {
       {back}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
+        <div className="min-w-0">
+          <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">{data.name}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
             <span>{data.group}</span>
             <span className="text-faint">•</span>
-            <span className="font-mono text-xs">{data.target}</span>
+            <span className="min-w-0 break-all font-mono text-xs">{data.target}</span>
             <span className="text-faint">•</span>
             <span className="uppercase">{data.type}</span>
           </p>
@@ -226,13 +227,14 @@ export default function ServiceDetail({ serviceId, refreshMs, onBack }) {
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <SectionTitle>Response time</SectionTitle>
-          <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
+          <div className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
             {data.ranges.map((r) => (
               <button
                 key={r.key}
                 type="button"
                 onClick={() => setRangeKey(r.key)}
-                className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
+                aria-pressed={r.key === rangeKey}
+                className={`min-h-[36px] shrink-0 rounded-md px-3 py-1.5 text-xs transition-colors sm:min-h-0 sm:py-1 ${
                   r.key === rangeKey ? 'bg-accent text-foreground' : 'text-muted hover:text-foreground'
                 }`}
               >
