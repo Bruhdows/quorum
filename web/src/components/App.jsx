@@ -159,9 +159,10 @@ export default function App() {
 
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-3 sm:px-6">
-          <a href="/" className="font-semibold tracking-tight transition-opacity hover:opacity-80">{site.title}</a>
+          {/* Truncates: the title comes from services.yaml and can be long. */}
+          <a href="/" className="min-w-0 flex-1 truncate font-semibold tracking-tight transition-opacity hover:opacity-80">{site.title}</a>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             {/* No tooltip here on purpose. It would sit on top of the menu
                 this button opens, and the button already shows its value. */}
             <Dropdown

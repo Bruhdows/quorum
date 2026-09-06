@@ -180,10 +180,10 @@ function OverallBanner({ services }) {
         <p className="mt-0.5 text-xs text-muted">{detail}</p>
       </div>
       <div className="ml-auto flex items-center gap-3 text-xs text-muted">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" />{up} up</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-danger" />{down} down</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warning" />{degraded} degraded</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-unknown" />{unknown} unknown</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="h-2 w-2 rounded-full bg-success" />{up} up</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="h-2 w-2 rounded-full bg-danger" />{down} down</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="h-2 w-2 rounded-full bg-warning" />{degraded} degraded</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="h-2 w-2 rounded-full bg-unknown" />{unknown} unknown</span>
       </div>
     </div>
   );
